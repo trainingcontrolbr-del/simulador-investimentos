@@ -36,7 +36,11 @@
     <div>DE INVESTIMENTOS</div>
   </div>
 
-  <h1 class="font-display" style="font-weight:900; font-size:34px; line-height:1.15; margin:24px 0 0;">
+  <div class="font-display" style="display:inline-block; margin-top:20px; padding:6px 14px; border-radius:999px; font-size:11px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; background:linear-gradient(90deg,#F1D77A,#C9A227); color:#101010">
+    🏆 Comparador de investimentos nº 1 do Brasil
+  </div>
+
+  <h1 class="font-display" style="font-weight:900; font-size:34px; line-height:1.15; margin:16px 0 0;">
     Descubra em segundos onde o seu dinheiro <span class="gold-text">rende mais</span> — sem planilha, sem economês.
   </h1>
   <div style="display:flex; align-items:center; gap:8px; margin-top:16px; font-size:13px; color:#D9B94B">
@@ -228,8 +232,8 @@ function renderPassos() {
         text-transform:uppercase; padding:4px 8px; border-radius:4px; margin-bottom:16px; background:rgba(201,162,39,0.12); color:#D9B94B">
         Passo · ${p.n}
       </div>
-      <div style="height:96px; border-radius:6px; margin-bottom:16px; overflow:hidden; border:1px solid rgba(201,162,39,0.3)">
-        <img src="${p.img}" alt="Passo ${p.n}" style="width:100%; height:100%; object-fit:cover; display:block">
+      <div style="height:110px; border-radius:6px; margin-bottom:16px; overflow:hidden; border:1px solid rgba(201,162,39,0.3); background:#0C0B07; display:flex; align-items:center; justify-content:center">
+        <img src="${p.img}" alt="Passo ${p.n}" style="width:100%; height:100%; object-fit:contain; display:block">
       </div>
       <p style="font-size:13px; color:#E9E4D3; line-height:1.4; margin:0">
         <span style="font-weight:600; color:#D9B94B">${p.destaque}</span> ${p.resto}
@@ -392,12 +396,12 @@ function iniciarChecagem(paymentId) {
 }
 
 // ---------- countdown ----------
-function iniciarCountdown(dias) {
-  const alvo = Date.now() + dias * 24 * 60 * 60 * 1000;
+function iniciarCountdown(horasTotal) {
+  const alvo = Date.now() + horasTotal * 60 * 60 * 1000;
   function tick() {
     const c = Math.max(alvo - Date.now(), 0);
     const partes = [
-      [Math.floor(c/86400000), "Dias"], [Math.floor((c/3600000)%24), "Horas"],
+      [Math.floor(c/3600000), "Horas"],
       [Math.floor((c/60000)%60), "Minutos"], [Math.floor((c/1000)%60), "Segundos"],
     ];
     document.getElementById("countdown").innerHTML = partes.map(([v, r]) => `
@@ -423,7 +427,7 @@ renderPerfis();
 renderBullets();
 renderPassos();
 renderResultados();
-iniciarCountdown(10);
+iniciarCountdown(2);
 </script>
 </body>
 </html>

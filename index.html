@@ -164,20 +164,35 @@ function simular({ taxaAnual, meses, valorInicial, aporteMensal, isento, taxaAdm
 const fmtBRL = (v) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const fmtPct = (v) => `${v.toFixed(1)}%`;
 
+// evolução ano a ano de uma opção (usado no relatório completo)
+function simularEvolucao({ taxaAnual, anos, valorInicial, aporteMensal, isento, taxaAdmAnual = 0 }) {
+  const taxaMensal = Math.pow(1 + Math.max(taxaAnual - taxaAdmAnual, 0) / 100, 1 / 12) - 1;
+  let saldo = valorInicial, totalInvestido = valorInicial;
+  const linhas = [];
+  for (let ano = 1; ano <= anos; ano++) {
+    for (let m = 0; m < 12; m++) { saldo = saldo * (1 + taxaMensal) + aporteMensal; totalInvestido += aporteMensal; }
+    const ganhoBruto = Math.max(saldo - totalInvestido, 0);
+    const aliq = isento ? 0 : aliquotaIR(ano * 12);
+    const saldoLiquido = saldo - ganhoBruto * (aliq / 100);
+    linhas.push({ ano, totalInvestido, saldoLiquido, ganhoLiquido: saldoLiquido - totalInvestido });
+  }
+  return linhas;
+}
+
 function calcularTudo() {
   const selic = 14.0, cdi = 13.9;
   const meses = Math.max(state.prazoAnos * 12, 1);
   const poupancaTaxa = selic > 8.5 ? selic * 0.7 : 6;
   const base = [
-    { nome: "Poupança", risco: "Baixíssimo", liquidez: "Diária", cor: "#B8AE7E",
+    { nome: "Poupança", risco: "Baixíssimo", liquidez: "Diária", cor: "#B8AE7E", taxaAnualUsada: poupancaTaxa, taxaAdmUsada: 0, isentoUsado: true,
       ...simular({ taxaAnual: poupancaTaxa, meses, valorInicial: state.valor, aporteMensal: state.aporte, isento: true }) },
-    { nome: "Tesouro Selic", risco: "Baixo", liquidez: "D+1", cor: "#4C7A6D",
+    { nome: "Tesouro Selic", risco: "Baixo", liquidez: "D+1", cor: "#4C7A6D", taxaAnualUsada: selic - 0.2, taxaAdmUsada: 0, isentoUsado: false,
       ...simular({ taxaAnual: selic - 0.2, meses, valorInicial: state.valor, aporteMensal: state.aporte, isento: false }) },
-    { nome: "CDB 100% CDI", risco: "Baixo", liquidez: "No vencimento", cor: "#7FA6C9",
+    { nome: "CDB 100% CDI", risco: "Baixo", liquidez: "No vencimento", cor: "#7FA6C9", taxaAnualUsada: cdi, taxaAdmUsada: 0, isentoUsado: false,
       ...simular({ taxaAnual: cdi, meses, valorInicial: state.valor, aporteMensal: state.aporte, isento: false }) },
-    { nome: "Fundo DI", risco: "Médio", liquidez: "D+1", cor: "#D9B94B",
+    { nome: "Fundo DI", risco: "Médio", liquidez: "D+1", cor: "#D9B94B", taxaAnualUsada: cdi, taxaAdmUsada: 1.0, isentoUsado: false,
       ...simular({ taxaAnual: cdi, meses, valorInicial: state.valor, aporteMensal: state.aporte, isento: false, taxaAdmAnual: 1.0 }) },
-    { nome: "Ações (simulado)", risco: "Alto", liquidez: "D+2", cor: "#C97A6D",
+    { nome: "Ações (simulado)", risco: "Alto", liquidez: "D+2", cor: "#C97A6D", taxaAnualUsada: 12, taxaAdmUsada: 0, isentoUsado: false,
       ...simular({ taxaAnual: 12, meses, valorInicial: state.valor, aporteMensal: state.aporte, isento: false }) },
   ];
   return base.sort((a, b) => b.saldoLiquido - a.saldoLiquido);
@@ -309,9 +324,11 @@ function renderPaywall(melhor, pior) {
         <div style="display:flex; justify-content:space-between; border-bottom:1px dashed rgba(201,162,39,0.25); padding:4px 0"><span>Alíquota de IR aplicada</span><span>${fmtPct(melhor.aliquota)}</span></div>
         <div style="display:flex; justify-content:space-between; border-bottom:1px dashed rgba(201,162,39,0.25); padding:4px 0"><span>Diferença vs. pior opção</span><span>${fmtBRL(melhor.saldoLiquido - pior.saldoLiquido)}</span></div>
       </div>
-      <button class="font-display" style="width:100%; margin-top:20px; padding:14px 0; border:none; border-radius:8px; font-weight:700; font-size:14px; cursor:pointer; background:linear-gradient(90deg,#F1D77A,#C9A227); color:#101010">Abrir ${melhor.nome} agora →</button>
+      <button id="btnBaixarRelatorio" class="font-display" style="width:100%; margin-top:20px; padding:14px 0; border:1px solid rgba(201,162,39,0.4); border-radius:8px; font-weight:700; font-size:14px; cursor:pointer; background:transparent; color:#E9E4D3">📄 Baixar relatório completo em PDF</button>
+      <button class="font-display" style="width:100%; margin-top:10px; padding:14px 0; border:none; border-radius:8px; font-weight:700; font-size:14px; cursor:pointer; background:linear-gradient(90deg,#F1D77A,#C9A227); color:#101010">Abrir ${melhor.nome} agora →</button>
       <p class="font-mono" style="font-size:10px; color:#8A8365; margin:8px 0 0; text-align:center">Link de parceiro · você pode ganhar comissão sem custo extra</p>
     `;
+    document.getElementById("btnBaixarRelatorio").onclick = abrirRelatorio;
     return;
   }
 
@@ -338,8 +355,33 @@ function renderPaywall(melhor, pior) {
   el.innerHTML = `
     <h3 class="font-display" style="font-weight:700; font-size:18px; margin:0 0 4px">Relatório completo</h3>
     <p style="font-size:13px; color:#B8AE7E; margin:0 0 16px; line-height:1.6">
-      Detalhamento ano a ano, imposto aplicado e a melhor opção pro seu perfil ${state.perfil}.
-      <span class="font-mono" style="color:#D9B94B">${fmtBRL(PRECO_RELATORIO)}</span> via Pix, liberação imediata.
+      A comparação acima já mostra o placar. O relatório mostra <strong style="color:#E9E4D3">o porquê</strong> —
+      e o que fazer com essa informação no seu caso, com perfil ${state.perfil}.
+    </p>
+    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:18px">
+      <div style="display:flex; gap:10px; align-items:flex-start">
+        <span style="color:#8FCBB2; font-size:12px; line-height:1.5; flex-shrink:0">✓</span>
+        <p style="font-size:13px; line-height:1.55; color:#C9C2AC; margin:0"><strong style="color:#E9E4D3">Evolução ano a ano</strong> — quanto é aporte seu e quanto é rendimento, ano por ano, pra você ver exatamente quando o juro passa a pesar mais que sua contribuição.</p>
+      </div>
+      <div style="display:flex; gap:10px; align-items:flex-start">
+        <span style="color:#8FCBB2; font-size:12px; line-height:1.5; flex-shrink:0">✓</span>
+        <p style="font-size:13px; line-height:1.55; color:#C9C2AC; margin:0"><strong style="color:#E9E4D3">Imposto detalhado</strong> — a alíquota exata aplicada em cada opção e quanto você deixa de pagar ao esticar o prazo além de 2 anos.</p>
+      </div>
+      <div style="display:flex; gap:10px; align-items:flex-start">
+        <span style="color:#8FCBB2; font-size:12px; line-height:1.5; flex-shrink:0">✓</span>
+        <p style="font-size:13px; line-height:1.55; color:#C9C2AC; margin:0"><strong style="color:#E9E4D3">O custo da escolha errada</strong> — em reais, a diferença entre a melhor e a pior opção no seu prazo. Normalmente é o dado que mais surpreende.</p>
+      </div>
+      <div style="display:flex; gap:10px; align-items:flex-start">
+        <span style="color:#8FCBB2; font-size:12px; line-height:1.5; flex-shrink:0">✓</span>
+        <p style="font-size:13px; line-height:1.55; color:#C9C2AC; margin:0"><strong style="color:#E9E4D3">Onde contratar</strong> — o caminho prático pra abrir a opção vencedora, sem depender do gerente do banco.</p>
+      </div>
+      <div style="display:flex; gap:10px; align-items:flex-start">
+        <span style="color:#8FCBB2; font-size:12px; line-height:1.5; flex-shrink:0">✓</span>
+        <p style="font-size:13px; line-height:1.55; color:#C9C2AC; margin:0"><strong style="color:#E9E4D3">PDF pra guardar</strong> — baixe e revise sempre que quiser, sem precisar refazer a simulação.</p>
+      </div>
+    </div>
+    <p style="font-size:15px; font-family:'IBM Plex Mono',monospace; color:#8A8365; margin:0 0 16px">
+      <span style="color:#D9B94B">${fmtBRL(PRECO_RELATORIO)}</span> via Pix · liberação imediata · acesso vitalício ao relatório
     </p>
     <div style="display:flex; align-items:center; gap:8px; border-bottom:2px solid #C9A227; padding-bottom:8px; margin-bottom:16px">
       <span class="font-mono" style="font-size:13px; color:#B8AE7E">@</span>
@@ -393,6 +435,138 @@ function iniciarChecagem(paymentId) {
       }
     } catch (err) { /* tenta de novo no próximo ciclo */ }
   }, 4000);
+}
+
+// ---------- relatório completo (janela de impressão / salvar como PDF) ----------
+function gerarRelatorioHTML(dados, melhor, pior) {
+  const hoje = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
+  const mesesTotal = Math.max(state.prazoAnos * 12, 1);
+  const aliqFinal = aliquotaIR(mesesTotal);
+
+  const linhasRanking = dados.map((r, i) => `
+    <tr style="${i === 0 ? "background:#EFF6F2; font-weight:600;" : ""}">
+      <td>${i + 1}</td>
+      <td>${r.nome}${i === 0 ? " ★" : ""}</td>
+      <td>${r.risco}</td>
+      <td>${r.liquidez}</td>
+      <td style="text-align:right">${fmtBRL(r.saldoLiquido)}</td>
+      <td style="text-align:right; color:#2F5346">+${fmtBRL(r.ganhoLiquido)}</td>
+      <td style="text-align:right">${fmtPct(r.aliquota)}</td>
+    </tr>`).join("");
+
+  const evolucao = simularEvolucao({
+    taxaAnual: melhor.taxaAnualUsada, anos: state.prazoAnos,
+    valorInicial: state.valor, aporteMensal: state.aporte,
+    isento: melhor.isentoUsado, taxaAdmAnual: melhor.taxaAdmUsada,
+  });
+  const linhasEvolucao = evolucao.map((l) => `
+    <tr>
+      <td>Ano ${l.ano}</td>
+      <td style="text-align:right">${fmtBRL(l.totalInvestido)}</td>
+      <td style="text-align:right">${fmtBRL(l.saldoLiquido)}</td>
+      <td style="text-align:right; color:#2F5346">${fmtBRL(l.ganhoLiquido)}</td>
+    </tr>`).join("");
+
+  const diferenca = melhor.saldoLiquido - pior.saldoLiquido;
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório — Comparador de Investimentos</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Georgia, 'Times New Roman', serif; color:#1A2438; max-width: 760px; margin: 0 auto; padding: 48px 32px 80px; line-height:1.5; }
+  h1 { font-family: Arial, sans-serif; font-size: 24px; margin: 0 0 4px; }
+  h2 { font-family: Arial, sans-serif; font-size: 15px; text-transform: uppercase; letter-spacing: 0.06em; color:#8A6A16; border-bottom: 2px solid #C9A227; padding-bottom: 6px; margin: 36px 0 14px; }
+  .sub { font-family: Arial, sans-serif; font-size: 12px; color: #666; }
+  table { width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 12.5px; }
+  th { text-align: left; background: #101B2D; color: #ECE7D6; padding: 8px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  td { padding: 7px 10px; border-bottom: 1px solid #E4E0D2; }
+  .box { background: #FBF9F2; border: 1px solid #E4E0D2; border-radius: 6px; padding: 16px 20px; font-family: Arial, sans-serif; font-size: 13px; }
+  .destaque { background: #101B2D; color: #ECE7D6; border-radius: 8px; padding: 20px 24px; margin: 14px 0; }
+  .destaque .valor { font-size: 26px; font-weight: bold; color: #F1D77A; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-family: Arial, sans-serif; font-size: 12.5px; }
+  .grid2 div { background: #FBF9F2; border: 1px solid #E4E0D2; border-radius: 4px; padding: 8px 12px; }
+  footer { margin-top: 48px; font-family: Arial, sans-serif; font-size: 10.5px; color: #888; border-top: 1px solid #E4E0D2; padding-top: 14px; }
+  @media print { body { padding: 24px; } }
+</style></head>
+<body>
+  <h1>Relatório completo — Comparador de Investimentos</h1>
+  <p class="sub">Gerado em ${hoje} · simulação de ${state.prazoAnos} ${state.prazoAnos === 1 ? "ano" : "anos"} · perfil ${state.perfil}</p>
+
+  <div class="grid2" style="margin-top:18px">
+    <div><strong>Valor inicial</strong><br>${fmtBRL(state.valor)}</div>
+    <div><strong>Aporte mensal</strong><br>${fmtBRL(state.aporte)}</div>
+    <div><strong>Prazo</strong><br>${state.prazoAnos} ${state.prazoAnos === 1 ? "ano" : "anos"}</div>
+    <div><strong>Perfil de risco</strong><br>${state.perfil.charAt(0).toUpperCase() + state.perfil.slice(1)}</div>
+  </div>
+
+  <h2>Melhor opção para o seu caso</h2>
+  <div class="destaque">
+    <div style="font-family:Arial, sans-serif; font-size:13px; opacity:0.8">Recomendação com base nos dados informados</div>
+    <div style="font-family:Arial, sans-serif; font-size:19px; font-weight:bold; margin-top:4px">${melhor.nome}</div>
+    <div class="valor">${fmtBRL(melhor.saldoLiquido)}</div>
+    <div style="font-family:Arial, sans-serif; font-size:12px; opacity:0.85">líquido de imposto ao final do período · rendimento de ${fmtBRL(melhor.ganhoLiquido)}</div>
+  </div>
+
+  <h2>Ranking completo</h2>
+  <table>
+    <thead><tr><th>#</th><th>Investimento</th><th>Risco</th><th>Liquidez</th><th style="text-align:right">Saldo líquido</th><th style="text-align:right">Rendimento</th><th style="text-align:right">IR aplicado</th></tr></thead>
+    <tbody>${linhasRanking}</tbody>
+  </table>
+
+  <h2>Evolução ano a ano — ${melhor.nome}</h2>
+  <table>
+    <thead><tr><th>Período</th><th style="text-align:right">Total investido</th><th style="text-align:right">Saldo líquido</th><th style="text-align:right">Rendimento acumulado</th></tr></thead>
+    <tbody>${linhasEvolucao}</tbody>
+  </table>
+  <p class="sub" style="margin-top:8px">"Total investido" soma seu valor inicial mais todos os aportes mensais feitos até aquele ano — a diferença para o saldo líquido é o que o investimento efetivamente rendeu.</p>
+
+  <h2>O custo da escolha errada</h2>
+  <div class="box">
+    Se em vez de <strong>${melhor.nome}</strong> você tivesse escolhido <strong>${pior.nome}</strong> pelo mesmo período,
+    o resultado líquido seria <strong>${fmtBRL(diferenca)}</strong> menor. Essa é a diferença real, em reais, entre a
+    melhor e a pior opção disponível para o seu valor, prazo e perfil.
+  </div>
+
+  <h2>Como funciona o imposto de renda</h2>
+  <div class="box">
+    O IR sobre investimentos de renda fixa segue uma tabela regressiva: quanto mais tempo o dinheiro fica aplicado,
+    menor a alíquota. Até 180 dias: 22,5%. De 181 a 360 dias: 20%. De 361 a 720 dias: 17,5%. Acima de 720 dias: 15%.
+    A Poupança é isenta de IR, mas isso raramente compensa o rendimento menor. No seu prazo de ${state.prazoAnos}
+    ${state.prazoAnos === 1 ? "ano" : "anos"}, a alíquota aplicada às opções tributáveis foi de <strong>${fmtPct(aliqFinal)}</strong>.
+  </div>
+
+  <h2>Onde contratar a opção vencedora</h2>
+  <div class="box">
+    <strong>${melhor.nome}</strong> pode ser contratado diretamente pelo aplicativo do seu banco (procure por
+    "Investimentos" ou "Renda Fixa") ou por uma corretora de valores sem taxa de corretagem para pessoa física.
+    Compare a taxa de administração cobrada antes de confirmar — ela reduz o rendimento líquido mostrado aqui.
+  </div>
+
+  <h2>Metodologia</h2>
+  <div class="box">
+    A simulação segue a lógica de comparação de retorno líquido de impostos, prática padrão certificada pelo
+    CFA Institute, e se apoia nos princípios da Teoria Moderna de Portfólio, formalizada por Harry Markowitz —
+    vencedor do Prêmio Nobel de Economia de 1990 por seu trabalho sobre risco e retorno de investimentos.
+  </div>
+
+  <footer>
+    Comparador de Investimentos · simulação educacional gerada a partir dos dados informados por você.
+    Rentabilidade passada não garante retorno futuro. Ações e fundos podem ter resultado negativo.
+    Este documento não constitui recomendação de investimento nem consultoria financeira registrada na CVM.
+  </footer>
+
+  <script>window.onload = function () { setTimeout(function () { window.print(); }, 300); };</script>
+</body></html>`;
+}
+
+function abrirRelatorio() {
+  const dados = calcularTudo();
+  const melhor = dados[0], pior = dados[dados.length - 1];
+  const win = window.open("", "_blank");
+  if (!win) { alert("Seu navegador bloqueou a janela. Permita pop-ups para baixar o relatório."); return; }
+  win.document.open();
+  win.document.write(gerarRelatorioHTML(dados, melhor, pior));
+  win.document.close();
 }
 
 // ---------- countdown ----------

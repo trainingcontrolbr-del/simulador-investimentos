@@ -48,7 +48,54 @@
     Preencha abaixo e compare 5 investimentos de graça, na hora
   </div>
 
-  <div style="background:#15130C; border:1px solid rgba(201,162,39,0.3); border-radius:10px; padding:24px; margin-top:24px">
+  <div style="display:flex; gap:6px; margin-top:24px">
+    <button id="abaSimulador" class="font-display" style="padding:10px 18px; font-size:13px; cursor:pointer; font-weight:700; letter-spacing:0.04em; border-radius:8px 8px 0 0"></button>
+    <button id="abaTutorial" class="font-display" style="padding:10px 18px; font-size:13px; cursor:pointer; font-weight:700; letter-spacing:0.04em; border-radius:8px 8px 0 0"></button>
+  </div>
+
+  <div id="painelTutorial" style="display:none; background:#15130C; border:1px solid rgba(201,162,39,0.3); border-radius:0 10px 10px 10px; padding:24px">
+    <h3 class="font-display" style="font-weight:800; font-size:17px; margin:0 0 4px">Como usar em 4 passos</h3>
+    <p class="font-mono" style="font-size:13px; color:#8A8365; margin:0 0 20px">leva menos de 1 minuto</p>
+    <div style="display:flex; flex-direction:column; gap:18px">
+      <div style="display:flex; gap:14px">
+        <span class="font-mono" style="width:26px; height:26px; flex-shrink:0; border-radius:5px; background:linear-gradient(135deg,#F1D77A,#C9A227); color:#101010; font-size:12px; display:flex; align-items:center; justify-content:center">1</span>
+        <div>
+          <div style="font-size:14px; font-weight:600; color:#E9E4D3; margin-bottom:4px">Informe quanto você tem hoje</div>
+          <p style="font-size:13px; line-height:1.6; color:#C9C2AC; margin:0">No campo <strong style="color:#D9B94B">Valor inicial</strong> coloque o dinheiro que você já tem guardado. Se ainda não tem nada, deixe zero — a simulação funciona só com o aporte mensal.</p>
+        </div>
+      </div>
+      <div style="display:flex; gap:14px">
+        <span class="font-mono" style="width:26px; height:26px; flex-shrink:0; border-radius:5px; background:linear-gradient(135deg,#F1D77A,#C9A227); color:#101010; font-size:12px; display:flex; align-items:center; justify-content:center">2</span>
+        <div>
+          <div style="font-size:14px; font-weight:600; color:#E9E4D3; margin-bottom:4px">Defina o aporte mensal</div>
+          <p style="font-size:13px; line-height:1.6; color:#C9C2AC; margin:0">Quanto você consegue guardar todo mês, com folga. Um valor menor e constante vale mais que um valor alto que você não sustenta.</p>
+        </div>
+      </div>
+      <div style="display:flex; gap:14px">
+        <span class="font-mono" style="width:26px; height:26px; flex-shrink:0; border-radius:5px; background:linear-gradient(135deg,#F1D77A,#C9A227); color:#101010; font-size:12px; display:flex; align-items:center; justify-content:center">3</span>
+        <div>
+          <div style="font-size:14px; font-weight:600; color:#E9E4D3; margin-bottom:4px">Arraste o prazo</div>
+          <p style="font-size:13px; line-height:1.6; color:#C9C2AC; margin:0">O prazo muda o imposto: acima de 2 anos a alíquota de IR cai de 22,5% para 15%. Teste 1, 3 e 10 anos para ver a diferença.</p>
+        </div>
+      </div>
+      <div style="display:flex; gap:14px">
+        <span class="font-mono" style="width:26px; height:26px; flex-shrink:0; border-radius:5px; background:linear-gradient(135deg,#F1D77A,#C9A227); color:#101010; font-size:12px; display:flex; align-items:center; justify-content:center">4</span>
+        <div>
+          <div style="font-size:14px; font-weight:600; color:#E9E4D3; margin-bottom:4px">Escolha o perfil e compare</div>
+          <p style="font-size:13px; line-height:1.6; color:#C9C2AC; margin:0">Conservador prioriza segurança e liquidez; arrojado aceita oscilação por mais retorno. Clique em comparar e leia o ranking — o valor mostrado já é <strong style="color:#D9B94B">líquido de imposto</strong>.</p>
+        </div>
+      </div>
+    </div>
+    <div style="border-top:1px solid rgba(201,162,39,0.2); margin-top:20px; padding-top:16px">
+      <div class="font-mono" style="font-size:11px; text-transform:uppercase; letter-spacing:0.1em; color:#8A8365; margin-bottom:8px">Como ler o resultado</div>
+      <p style="font-size:13px; line-height:1.6; color:#C9C2AC; margin:0">A linha destacada em verde é a melhor opção para os dados que você informou. A etiqueta indica o risco e, ao lado, aparece a liquidez — quanto tempo leva para o dinheiro voltar à sua conta.</p>
+    </div>
+    <button id="btnIrSimulador" class="font-display" style="width:100%; margin-top:20px; padding:13px 0; border:1px solid rgba(201,162,39,0.4); background:transparent; border-radius:8px; font-weight:700; font-size:13px; letter-spacing:0.06em; color:#E9E4D3; cursor:pointer">
+      IR PARA O SIMULADOR →
+    </button>
+  </div>
+
+  <div id="painelSimulador" style="background:#15130C; border:1px solid rgba(201,162,39,0.3); border-radius:0 10px 10px 10px; padding:24px">
     <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:20px">
       <div>
         <label class="font-mono" style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#B8AE7E">Valor inicial</label>
@@ -140,8 +187,31 @@ const PRECO_RELATORIO = 19.9;
 const state = {
   valor: 5000, aporte: 300, prazoAnos: 3, perfil: "moderado",
   calculado: false, email: "", estado: "idle", pix: null, unlocked: false, mensagemErro: "",
+  aba: "simulador",
 };
 let pollTimer = null;
+
+// ---------- abas Simulador / Como usar ----------
+function renderAbas() {
+  const ativa = { background: "#15130C", color: "#D9B94B", borderBottom: "1px solid #15130C" };
+  const inativa = { background: "transparent", color: "#8A8365", borderBottom: "1px solid transparent" };
+  const aplicarEstilo = (btn, s) => {
+    btn.style.background = s.background; btn.style.color = s.color; btn.style.borderBottom = s.borderBottom;
+    btn.style.border = "1px solid rgba(201,162,39,0.3)"; btn.style.marginBottom = "-1px";
+    if (s.borderBottom) btn.style.borderBottom = s.borderBottom;
+  };
+  const btnSim = document.getElementById("abaSimulador");
+  const btnTut = document.getElementById("abaTutorial");
+  btnSim.textContent = "Simulador"; btnTut.textContent = "Como usar";
+  aplicarEstilo(btnSim, state.aba === "simulador" ? ativa : inativa);
+  aplicarEstilo(btnTut, state.aba === "tutorial" ? ativa : inativa);
+  document.getElementById("painelSimulador").style.display = state.aba === "simulador" ? "block" : "none";
+  document.getElementById("painelTutorial").style.display = state.aba === "tutorial" ? "block" : "none";
+}
+document.getElementById("abaSimulador").onclick = () => { state.aba = "simulador"; renderAbas(); };
+document.getElementById("abaTutorial").onclick = () => { state.aba = "tutorial"; renderAbas(); };
+document.getElementById("btnIrSimulador").onclick = () => { state.aba = "simulador"; renderAbas(); };
+renderAbas();
 
 // ---------- cálculo financeiro ----------
 function aliquotaIR(meses) {

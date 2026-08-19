@@ -101,14 +101,14 @@
         <label class="font-mono" style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#B8AE7E">Valor inicial</label>
         <div style="display:flex; align-items:center; gap:4px; margin-top:6px; border-bottom:2px solid #C9A227; padding-bottom:4px">
           <span class="font-mono" style="font-size:18px">R$</span>
-          <input id="inValor" type="number" min="0" value="5000" class="font-mono" style="font-size:18px; background:transparent; border:none; outline:none; width:100%; color:#E9E4D3">
+          <input id="inValor" type="text" inputmode="numeric" value="5.000" class="font-mono" style="font-size:18px; background:transparent; border:none; outline:none; width:100%; color:#E9E4D3">
         </div>
       </div>
       <div>
         <label class="font-mono" style="font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#B8AE7E">Aporte mensal</label>
         <div style="display:flex; align-items:center; gap:4px; margin-top:6px; border-bottom:2px solid #C9A227; padding-bottom:4px">
           <span class="font-mono" style="font-size:18px">R$</span>
-          <input id="inAporte" type="number" min="0" value="300" class="font-mono" style="font-size:18px; background:transparent; border:none; outline:none; width:100%; color:#E9E4D3">
+          <input id="inAporte" type="text" inputmode="numeric" value="300" class="font-mono" style="font-size:18px; background:transparent; border:none; outline:none; width:100%; color:#E9E4D3">
         </div>
       </div>
     </div>
@@ -664,8 +664,19 @@ function iniciarCountdown(horasTotal) {
 }
 
 // ---------- wiring geral ----------
-document.getElementById("inValor").oninput = (e) => { state.valor = Number(e.target.value) || 0; };
-document.getElementById("inAporte").oninput = (e) => { state.aporte = Number(e.target.value) || 0; };
+// máscara de milhar em tempo real: só aceita dígitos, formata "3.000" automaticamente
+function ligarCampoMoeda(id, aoMudar) {
+  const el = document.getElementById(id);
+  el.oninput = () => {
+    const digitos = el.value.replace(/\D/g, ""); // remove tudo que não é número
+    const numero = digitos ? parseInt(digitos, 10) : 0;
+    el.value = digitos ? numero.toLocaleString("pt-BR") : "";
+    aoMudar(numero);
+  };
+  el.onblur = () => { if (!el.value) el.value = "0"; };
+}
+ligarCampoMoeda("inValor", (n) => { state.valor = n; });
+ligarCampoMoeda("inAporte", (n) => { state.aporte = n; });
 document.getElementById("inPrazo").oninput = (e) => {
   state.prazoAnos = Number(e.target.value);
   document.getElementById("prazoLabel").textContent = `${state.prazoAnos} ${state.prazoAnos === 1 ? "ano" : "anos"}`;
